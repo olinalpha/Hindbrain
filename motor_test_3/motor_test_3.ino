@@ -1,59 +1,78 @@
 #include <Servo.h>
 
-const int turn_motor_pin = 2;
-const int thrust_motor_pin = 3;
+const int turn_motor_pin = 3;
+const int thrust_motor_pin = 2;
 const int STOP = 1500;
 const int MIN = 1250;
 const int MAX = 1750;
-//int estop = 7;
-//int 
 
-Servo turn_motor;
-Servo thrust_motor;
+int SPEED = STOP;
+int SPEED_NOW = STOP;
+const int DELTA_SPEED = 5;
 
-void setup(){
+int eStopPin = 7;
+unsigned long time1;
+unsigned long time2;
+
+Servo turn_motor;   // controls the turning part of the roboclaw
+Servo thrust_motor; // controls the speed part of the roboclaw
+
+void setup() {
   Serial.begin(9600);
   pinMode(turn_motor_pin, OUTPUT);
   pinMode(thrust_motor_pin, OUTPUT);
+  pinMode(eStopPin, INPUT);
   turn_motor.attach(turn_motor_pin);
   thrust_motor.attach(thrust_motor_pin);
-//  pinMode(e/stop, INPUT)
-  while (!Serial);
-  Serial.println("speed 1k to 2k, 1.5k neutral");
+
+  thrust_motor.writeMicroseconds(SPEED);
+  //  pinMode(e/stop, INPUT)
+  //  while (!Serial);
+  //  Serial.println("speed 1k to 2k, 1.5k neutral");
   // put your setup code here, to run once:
 
 }
 
 void loop() {
 
-if (Serial.available())
-{
-  int speed = Serial.parseInt();
-  if (speed >= 1000 && speed <= 2000)
+  if (Serial.available())
   {
-    turn_motor.writeMicroseconds(speed); // this stops
-    thrust_motor.writeMicroseconds(speed);
+    time1 = millis();
+    SPEED = Serial.parseInt();
+    Serial.println(SPEED);
   }
+
+
+  if (SPEED >= 1000 && SPEED <= 2000)
+  {
+    if (SPEED_NOW < SPEED) {
+      SPEED_NOW += DELTA_SPEED;
+      thrust_motor.writeMicroseconds(SPEED_NOW);
+      delay(1000);
+      Serial.println(SPEED_NOW);
+    }
+    if (SPEED_NOW > SPEED) {
+      SPEED_NOW -= DELTA_SPEED;
+      thrust_motor.writeMicroseconds(SPEED_NOW);
+      delay(1000);
+      Serial.println(SPEED_NOW);
+    }
+  }
+
+
+  if (readEstop() == 0)
+    {
+      SPEED = 1500;
+      SPEED_NOW = 1500;
+      Serial.println("estop pressed");
+    }
+
+  //turn_motor_pin.writeMicroseconds(STOP); // this stops
+  //thrust_motor.writeMicroseconds(STOP);   // stops
 }
 
-//tu/rn_motor_pin.writeMicroseconds(STOP); // this stops
-//thrus/t_motor.writeMicroseconds(STOP);   // stops
-
-
-//  turn_motor.write(90);
-//  //thrust_motor.write(30);
-//  
-//  for(int i=0; i<30; ++i){
-//    //turn_motor.write(i);
-//    thrust_motor.write(i);
-//    Serial.println(i);
-//    delay(100);
-//  }
-//
-//  for(int i=30; i>0; --i){
-//    turn_motor.write(i);
-//    //thrust_motor.write(i);
-//    Serial.println(i);
-//    delay(100);
-//  }
+boolean readEstop() {
+  boolean eStopTriggered = digitalRead(eStopPin);
+  return eStopTriggered;
 }
+
