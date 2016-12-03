@@ -1,4 +1,10 @@
 #include <Servo.h>
+#include <ros.h>
+//#include <std_msgs/String.h>
+#include <std_msgs/UInt16.h>
+
+
+ros::NodeHandle nh;
 
 const int MOTOR_L_pin = 2;
 const int MOTOR_R_pin = 3;
@@ -25,6 +31,14 @@ const long ramp_time = 100; // wait time for mechanical system to change speeds 
 Servo MOTOR_L;   
 Servo MOTOR_R; 
 
+
+
+void MODE_cb(const std_msgs::UInt16& cmd_msg){
+  MODE = cmd_msg.data;
+}
+
+ros::Subscriber<std_msgs::UInt16> sub("mode", MODE_cb);
+
 void setup() {
   Serial.begin(9600);
   pinMode(MOTOR_L_pin, OUTPUT);
@@ -35,11 +49,14 @@ void setup() {
 
   MOTOR_L.writeMicroseconds(SPEED_L[MODE]); 
   MOTOR_R.writeMicroseconds(SPEED_R[MODE]);
-
+nh.subscribe(sub);
+  nh.initNode();
 }
 
 void loop() {
-
+  
+  nh.spinOnce();
+  
 //Check if the Estop is pressed
   if (readEstop() == 0){ //Should change this to WHILE loop and assign STOP to R and L motors
       //MODE = 0;
@@ -56,12 +73,12 @@ void loop() {
    }
 
 //Check if new input from serial monitor; will be replaced with ROS update
-  if (Serial.available()){
+//  if (Serial.available()){
     
-    MODE = Serial.parseInt();
-    Serial.println(MODE);
-  }
-  
+//    MODE = Serial.parseInt();
+  //    Serial.println(MODE);
+  //  }
+ 
  
   time1 = millis();
 //Check if speed needs to be changed (new mode)
