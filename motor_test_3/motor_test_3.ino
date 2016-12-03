@@ -1,82 +1,39 @@
 #include <Servo.h>
 
-const int MOTOR_L_pin = 2;
-const int MOTOR_R_pin = 3;
-const int STOP = 1570;
-const int MIN = 1300;
-const int MAX = 1700;
-int timer = 0;
+const int turn_motor_pin = 2;
+const int thrust_motor_pin = 3;
 
-int SPEED_L[6] = {STOP, MAX,  MAX,  MAX, 1625, 1550};
-int SPEED_R[6] = {STOP, 1550, 1625, MAX, MAX,  MAX};
+Servo turn_motor;
+Servo thrust_motor;
 
-int MODE = 0;
-int SPEED_NOW_L = STOP;
-int SPEED_NOW_R = STOP;
-const int DELTA_SPEED = 5;
-
-int eStopPin = 7;
-unsigned long time1;
-unsigned long time2;
-
-Servo MOTOR_L;   
-Servo MOTOR_R; 
-
-void setup() {
+void setup(){
   Serial.begin(9600);
-  pinMode(MOTOR_L_pin, OUTPUT);
-  pinMode(MOTOR_R_pin, OUTPUT);
-  pinMode(eStopPin, INPUT);
-  MOTOR_L.attach(MOTOR_L_pin);
-  MOTOR_R.attach(MOTOR_R_pin);
+  pinMode(turn_motor_pin, OUTPUT);
+  pinMode(thrust_motor_pin, OUTPUT);
+  turn_motor.attach(turn_motor_pin);
+  thrust_motor.attach(thrust_motor_pin);
 
-  MOTOR_L.writeMicroseconds(SPEED_L[0]);
-  MOTOR_R.writeMicroseconds(SPEED_R[0]);
+
+  // put your setup code here, to run once:
 
 }
 
 void loop() {
 
-  if (Serial.available())
-  {
-    time1 = millis();
-    MODE = Serial.parseInt();
-    Serial.println(MODE);
+  turn_motor.write(90);
+  //thrust_motor.write(30);
+  
+  for(int i=0; i<30; ++i){
+    //turn_motor.write(i);
+    thrust_motor.write(i);
+    Serial.println(i);
+    delay(100);
   }
-if (SPEED_NOW_L != SPEED_L[MODE]){
-SPEED_NOW_L =  ramp_speed(SPEED_NOW_L, SPEED_L[MODE], MOTOR_L);
-}
-if (SPEED_NOW_R != SPEED_L[MODE]){
-SPEED_NOW_R =  ramp_speed(SPEED_NOW_R, SPEED_R[MODE], MOTOR_R);
-}
-  if (readEstop() == 0)
-    {
-      MODE = 0;
-//      SPEED_NOW = 1500;
-      Serial.println("estop pressed");
-    }
-}
 
-boolean readEstop() {
-  boolean eStopTriggered = digitalRead(eStopPin);
-  return eStopTriggered;
+  for(int i=30; i>0; --i){
+    turn_motor.write(i);
+    //thrust_motor.write(i);
+    Serial.println(i);
+    delay(100);
+  }
 }
-
-int ramp_speed(int SPEED_NOW,int  SPEED, Servo MOTOR)
-{
-//  int SPEED_NOW;
-  if (SPEED_NOW < SPEED) {
-      SPEED_NOW += DELTA_SPEED;
-      MOTOR.writeMicroseconds(SPEED_NOW);
-      delay(100);
-      Serial.println(SPEED_NOW);
-    }
-    if (SPEED_NOW > SPEED) {
-      SPEED_NOW -= DELTA_SPEED;
-      MOTOR.writeMicroseconds(SPEED_NOW);
-      delay(100);
-      Serial.println(SPEED_NOW);
-    }
-  return SPEED_NOW;
-}
-
