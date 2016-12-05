@@ -18,7 +18,10 @@ float linear = 0.0;
 int motorPower = STOP;
 
 int eStopPin = 7;
-
+int leftMotorValue = 1570;
+int rightMotorValue = 1570;
+int prevTime = 0;
+int rampDelay = 1;
 Servo MOTOR_L;   
 Servo MOTOR_R; 
 
@@ -43,6 +46,10 @@ void setup() {
   MOTOR_R.writeMicroseconds(STOP);
   nh.subscribe(sub);
   nh.initNode();
+  
+  Serial.println('test');
+  delay(5);
+  prevTime = millis();
 }
 
 void loop() {
@@ -52,8 +59,8 @@ void loop() {
 //Check if the Estop is pressed
   if (readEstop() == 0){ //Should change this to WHILE loop and assign STOP to R and L motors
       //MODE = 0;
-      MOTOR_L.writeMicroseconds(STOP);
-      MOTOR_R.writeMicroseconds(STOP);
+      //MOTOR_L.writeMicroseconds(STOP);
+      //MOTOR_R.writeMicroseconds(STOP);
       Serial.println("estop pressed");
       
    }else{
@@ -61,20 +68,18 @@ void loop() {
    
    }
 
-  MAX = STOP + (linear * 300);  
+  MAX = STOP + (linear * 300/2);  
   motorPower = MAX  - (abs(angular) * 300);
+  
 
-  if (angular < 0){       
-    MOTOR_L.writeMicroseconds(motorPower);
-    MOTOR_R.writeMicroseconds(MAX);
+  if (angular < 0){
+    ramp_speed(motorPower, MAX);
   }
   else if (angular > 0){    
-    MOTOR_L.writeMicroseconds(MAX);
-    MOTOR_R.writeMicroseconds(motorPower);
+    ramp_speed(MAX, motorPower);
   }
   else{ // angle is 0
-    MOTOR_L.writeMicroseconds(MAX);
-    MOTOR_R.writeMicroseconds(MAX);
+    ramp_speed(MAX, MAX);
   }
 
 }
@@ -84,21 +89,29 @@ boolean readEstop() {
   return eStopTriggered;
 }
 
-//
-//int ramp_speed(int SPEED_NOW,int  SPEED, Servo MOTOR)
-//{
-////  int SPEED_NOW;
-//  if (SPEED_NOW < SPEED) {
-//      SPEED_NOW += DELTA_SPEED;
-//      MOTOR.writeMicroseconds(SPEED_NOW);
-//      Serial.println(SPEED_NOW);
-//    }
-//    if (SPEED_NOW > SPEED) {
-//      SPEED_NOW -= DELTA_SPEED;
-//      MOTOR.writeMicroseconds(SPEED_NOW);
-//      Serial.println(SPEED_NOW);
-//    }
-//  return SPEED_NOW;
-//}
+void writemix(int& leffMotorValue, int& rightMotorValue){
+  MOTOR_L.writeMicroseconds(leftMotorValue + rightMotorValue/2);
+  MOTOR_R.writeMicroseconds(leftMotorValue - rightMotorValue/2);
+}
+
+void ramp_speed(int speedLeft, int speedRight)
+{
+  if(millis() - prevTime > rampDelay){
+    if (speedLeft > leftMotorValue){
+      leftMotorValue ++;
+    }else if (speedLeft < leftMotorValue){
+      leftMotorValue --;
+    }
+    if (speedRight > rightMotorValue){
+      rightMotorValue ++;
+    }else if (speedRight < rightMotorValue){
+      rightMotorValue --;
+    }
+    prevTime = millis();
+  }
+  MOTOR_L.writeMicroseconds(leftMotorValue);
+  MOTOR_R.writeMicroseconds(rightMotorValue);
+  
+}
 
 
