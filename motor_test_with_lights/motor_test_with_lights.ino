@@ -1,10 +1,9 @@
 #include <Adafruit_TiCoServo.h>
 #include <ros.h>
-//#include <std_msgs/String.h>
+#include <std_msgs/Float32.h>
 #include <Adafruit_NeoPixel.h>
 #include <geometry_msgs/Twist.h>
 ros::NodeHandle nh;
-
 
 #define MOTOR_L_pin 2
 #define MOTOR_R_pin 3
@@ -22,10 +21,12 @@ const int neutralAccel = 1470;
 const int maxRange = 800;
 float angularVel = 0;
 float linearVel = 0;
-int leftMotorValue = 1470;
-int rightMotorValue = 1470;
+int leftMotorValue = 0;
+int rightMotorValue = 0;
+int leftMotorSpeed = 0;
+int rightMotorSpeed = 0;
 int prevTime = 0;
-const int rampDelay = 2;
+const int rampDelay = 1;
 const int velScale = 150;
 const int turnScale = 150;
 
@@ -47,6 +48,7 @@ uint32_t off = headlightLeft.Color(0, 0, 0);
 unsigned long prevTimeLightsBlink = 0;
 unsigned long prevTimeLightsRipple = 0;
 unsigned long currentMillis = 0;
+unsigned long turnLightsMillis = 0;
 int rippleIndex = 0;
 
 
@@ -60,9 +62,11 @@ void CMD_VEL(const geometry_msgs::Twist& cmd_msg){
 }
 
 ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", CMD_VEL);
+std_msgs::Float32 int_msg;
+ros::Publisher chatter("chatter", &int_msg);
 
 void setup() {
-  Serial.begin(19200);
+  Serial.begin(9600);
   pinMode(MOTOR_L_pin, OUTPUT);
   pinMode(MOTOR_R_pin, OUTPUT);
   pinMode(eStopPin, INPUT);
@@ -73,18 +77,22 @@ void setup() {
   headlightRight.begin();
   taillightLeft.begin();
   taillightRight.begin();
+  headlightLeft.show();
   showLights();
   headlightLeft.setBrightness(brightness);
   headlightRight.setBrightness(brightness);
   taillightLeft.setBrightness(brightness);
   taillightRight.setBrightness(brightness);
-
+  setSolid(headlightLeft, 12, blue);
+  setSolid(headlightRight, 12, blue);
   MOTOR_L.write(90); 
   MOTOR_R.write(90);
-  //nh.subscribe(sub);
-  //nh.initNode();
   
-  Serial.println("beginning");
+  nh.advertise(chatter);
+  nh.subscribe(sub);
+  nh.initNode();
+  
+  //Serial.println("beginning");
   delay(5);
   currentMillis = millis();
   prevTime = millis();
@@ -94,8 +102,6 @@ void setup() {
 
 void loop() {
   
-  nh.spinOnce();
-  currentMillis = millis();
   
 //Check if the Estop is pressed
   if (readEstop() == 0){ //Should change this to WHILE loop and assign STOP to R and L motors
@@ -105,42 +111,49 @@ void loop() {
       //MOTOR_R.writeMicroseconds(STOP);      
    }else{
       EStopped = false;
-      calculateMotorSpeed(.2, .2);
-      //calculateMotorSpeed(linearVel, angularVel);
-      rampSpeed(leftMotorValue, rightMotorValue);
-      runLights();
+      //calculateMotorSpeed(.2, .2);
+      calculateMotorSpeed(linearVel, angularVel);
+      rampSpeed(leftMotorSpeed, rightMotorSpeed);
+      //MOTOR_L.write(mapMotor(leftMotorValue));
+      //MOTOR_R.write(mapMotor(rightMotorValue));
       //Serial.println(leftMotorValue);
       //Serial.println(rightMotorValue);
    }
+
+
+   if( currentMillis - turnLightsMillis > 100){
+    runLights();
+    turnLightsMillis = currentMillis;
+   }
+   int_msg.data = linearVel;
+   chatter.publish(&int_msg);
+   
+
+   nh.spinOnce();
+   delay(1);
+   currentMillis = millis();
+   
 }
 
 void runLights(){
   if(!EStopped){
-    setSolid(headlightLeft, 12, white);
-    setSolid(headlightRight, 12, white);
-    if(linearVel = 0){
-      setSolid(taillightLeft, 8, red);
-      setSolid(taillightRight, 8, red);
+    //headlightLeft.setPixelColor(5, blue);
+    setSolid(taillightLeft, 8, red);
+    setSolid(taillightRight, 8, red);
+    
+    if(angularVel < -.2){
+      setSolid(taillightRight, 8, yellow);
+    }else if(angularVel > .2){
+      setSolid(taillightLeft, 8, yellow);
     }
-    if(stopping){
-      setSolid(taillightLeft, 8, red);
-      setSolid(taillightRight, 8, red);
-    }else{
-      setSolid(headlightLeft, 12, green);
-      setSolid(headlightRight, 12, green);
-      if(angularVel > .2){
-        updateRippleIndex(200);
-        setRipple(taillightRight, 12, yellow);
-      }else if(angularVel < .2){
-        updateRippleIndex(200);
-        setRipple(taillightLeft, 12, yellow);
-      }
-    }
-
   }else{
-      setBlinking(taillightLeft, 8, red, 200);
-      setBlinking(taillightRight, 8, red, 200);
+      setBlinking(taillightLeft, 8, red, 300);
+      setBlinking(taillightRight, 8, red, 300);
   }
+  //headlightLeft.show();
+  //headlightRight.show();
+  //taillightLeft.show();
+  //taillightRight.show();
   showLights();
 }
 
@@ -152,8 +165,8 @@ boolean readEstop() {
 
 void calculateMotorSpeed(float linear, float angular){
   //calculates motor speed from linear and angular
-  leftMotorValue = linear*velScale - angular*turnScale;
-  rightMotorValue = linear*velScale + angular*turnScale;
+  leftMotorSpeed = linear*velScale - angular*turnScale;
+  rightMotorSpeed = linear*velScale + angular*turnScale;
 }
 
 

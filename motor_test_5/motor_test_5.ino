@@ -47,7 +47,7 @@ void setup() {
   nh.subscribe(sub);
   nh.initNode();
   
-  Serial.println('test');
+  Serial.println("test");
   delay(5);
   prevTime = millis();
 }
