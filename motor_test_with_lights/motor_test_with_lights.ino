@@ -12,9 +12,12 @@ ros::NodeHandle nh;
 #define headlightRightPin 15
 #define taillightLeftPin 8
 #define taillightRightPin 9
+#define IRPinLeft A1
+#define IRPinRight A0
 
 bool EStopped = false;
 bool stopping = true;
+bool IREStopped = false;
 
 //Motor Variables
 const int neutralAccel = 1470;
@@ -28,7 +31,7 @@ int rightMotorSpeed = 0;
 int prevTime = 0;
 const int rampDelay = 1;
 const int velScale = 150;
-const int turnScale = 150;
+const int turnScale = 120;
 
 
 //Light stuff
@@ -49,6 +52,12 @@ unsigned long prevTimeLightsBlink = 0;
 unsigned long prevTimeLightsRipple = 0;
 unsigned long currentMillis = 0;
 unsigned long turnLightsMillis = 0;
+
+
+//IR STUFF
+unsigned long IRLeftMillis = 0;
+unsigned long IRRightMillis = 0;
+int IRDelay = 25;
 int rippleIndex = 0;
 
 
@@ -66,6 +75,7 @@ std_msgs::Float32 int_msg;
 ros::Publisher chatter("chatter", &int_msg);
 
 void setup() {
+  IREStopped = false;
   Serial.begin(9600);
   pinMode(MOTOR_L_pin, OUTPUT);
   pinMode(MOTOR_R_pin, OUTPUT);
@@ -104,14 +114,17 @@ void loop() {
   
   
 //Check if the Estop is pressed
-  if (readEstop() == 0){ //Should change this to WHILE loop and assign STOP to R and L motors
-      EStopped = true;
+  if (IREStopped){ //Should change this to WHILE loop and assign STOP to R and L motors
+      //EStopped = true;
       //MODE = 0;
+      //Serial.println("ESTOPPED");
+      MOTOR_L.write(mapMotor(0));
+      MOTOR_R.write(mapMotor(0));
       //MOTOR_L.writeMicroseconds(STOP);
-      //MOTOR_R.writeMicroseconds(STOP);      
+      //MOTOR_R.writeMicroseconds(STOP);    
    }else{
       EStopped = false;
-      //calculateMotorSpeed(.2, .2);
+      //calculateMotorSpeed(.8, 0);
       calculateMotorSpeed(linearVel, angularVel);
       rampSpeed(leftMotorSpeed, rightMotorSpeed);
       //MOTOR_L.write(mapMotor(leftMotorValue));
@@ -122,19 +135,45 @@ void loop() {
 
 
    if( currentMillis - turnLightsMillis > 100){
-    runLights();
+    //runLights();
     turnLightsMillis = currentMillis;
    }
    int_msg.data = linearVel;
    chatter.publish(&int_msg);
-   
+   //Serial.println(analogRead(IRPinLeft));
 
    nh.spinOnce();
    delay(1);
+   SenseIR();
    currentMillis = millis();
    
 }
 
+
+void SenseIR(){
+  int IRLeftDistance = analogRead(IRPinLeft);
+  int IRRightDistance = analogRead(IRPinRight);
+  //Serial.println(IRLeftDistance);
+  //Serial.println(IRRightDistance);
+  if (IRLeftDistance < 50){
+    //Serial.println("test");
+    if(currentMillis - IRLeftMillis > IRDelay){
+      //Serial.println("test");
+      IREStopped = true;
+    }
+  }else{
+    IRLeftMillis = currentMillis;
+    IREStopped = false;
+  }
+  if (IRRightDistance < 50){
+    if(currentMillis - IRRightMillis > IRDelay){
+      IREStopped = true;
+    }
+  }else{
+    IRRightMillis = currentMillis;
+    IREStopped = false;
+  }
+}
 void runLights(){
   if(!EStopped){
     //headlightLeft.setPixelColor(5, blue);
