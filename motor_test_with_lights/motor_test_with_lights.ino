@@ -14,6 +14,8 @@ ros::NodeHandle nh;
 #define taillightLeftPin 8
 #define taillightRightPin 9
 
+bool EStopped = false;
+bool stopping = true;
 
 //Motor Variables
 const int neutralAccel = 1470;
@@ -113,14 +115,32 @@ void loop() {
 }
 
 void runLights(){
-  updateRippleIndex(500);
-  setBlinking(taillightLeft, 12, red, 500);
-  setRipple(taillightRight, 12, red);
-  setRipple(headlightLeft, 12, green);
-  setBlinking(headlightRight, 12, red, 500);
-  //setSolid(headlightLeft, 12, red);
-  //setSolid(headlightRight, 12, white);
-  //setSolid(taillightLeft, 8, yellow);
+  if(!EStopped){
+    setSolid(headlightLeft, 12, white);
+    setSolid(headlightRight, 12, white);
+    if(linearVel = 0){
+      setSolid(taillightLeft, 8, red);
+      setSolid(taillightRight, 8, red);
+    }
+    if(stopping){
+      setSolid(taillightLeft, 8, red);
+      setSolid(taillightRight, 8, red);
+    }else{
+      setSolid(headlightLeft, 12, green);
+      setSolid(headlightRight, 12, green);
+      if(angularVel > .2){
+        updateRippleIndex(200);
+        setRipple(taillightRight, 12, yellow);
+      }else if(angularVel < .2){
+        updateRippleIndex(200);
+        setRipple(taillightLeft, 12, yellow);
+      }
+    }
+
+  }else{
+      setBlinking(taillightLeft, 8, red, 200);
+      setBlinking(taillightRight, 8, red, 200);
+  }
   showLights();
 }
 
@@ -142,53 +162,14 @@ void setSolid(Adafruit_NeoPixel &light, int numPins, uint32_t color){
     light.setPixelColor(i, color);
   }
 }
-void setBlinking(Adafruit_NeoPixel &light, int numPins, uint32_t color, unsigned long delayTime){
-  /*if(currentMillis - prevTimeLightsBlink > delayTime){
-    prevTimeLightsBlink = currentMillis;
-    Serial.println("test1");
-    Serial.println(currentMillis);
-    Serial.println(prevTimeLightsBlink);
-    Serial.println(currentMillis - prevTimeLightsBlink);
-  }else if(currentMillis - prevTimeLightsBlink > delayTime/2){
-    setSolid(light, numPins, off);
-    Serial.println("test2");
-    Serial.println(currentMillis);
-    Serial.println(prevTimeLightsBlink);
-    Serial.println(currentMillis - prevTimeLightsBlink);
-  }else{
-    setSolid(light, numPins, color);
-    Serial.println("test3");
-    Serial.println(currentMillis);
-    Serial.println(prevTimeLightsBlink);
-    Serial.println(currentMillis - prevTimeLightsBlink);
-  }*/
-  
-  
+void setBlinking(Adafruit_NeoPixel &light, int numPins, uint32_t color, unsigned long delayTime){ 
   if((currentMillis - prevTimeLightsBlink) < delayTime/2){
     setSolid(light, numPins, color);
-    Serial.println("test1");
-    Serial.println(currentMillis);
-    Serial.println(prevTimeLightsBlink);
   }else if((currentMillis - prevTimeLightsBlink) < delayTime){
     setSolid(light, numPins, off);
-    Serial.println("test2");
-    Serial.println(currentMillis);
-    Serial.println(prevTimeLightsBlink);
   }else{
     prevTimeLightsBlink = currentMillis;
-    Serial.println("test3");
-    
-  }/*
-  if((currentMillis - prevTimeLightsBlink < -1) || (currentMillis - prevTimeLightsBlink >= delayTime)){
-    prevTimeLightsBlink = currentMillis;
-    Serial.println("test3");
-    Serial.println(currentMillis);
-    Serial.println(prevTimeLightsBlink);
-    Serial.println(currentMillis - prevTimeLightsBlink);
-  }else{
-    Serial.println("test4:");
-    Serial.println(currentMillis - prevTimeLightsBlink);
-  }*/
+  }
 }
 void setRipple(Adafruit_NeoPixel &light, int numPins, uint32_t color){
   if(rippleIndex == -1){
@@ -196,7 +177,7 @@ void setRipple(Adafruit_NeoPixel &light, int numPins, uint32_t color){
        light.setPixelColor(i, off);
     }
   }else{
-    light.setPixelColor(rippleIndex, color);
+    light.setPixelColor(11 - rippleIndex, color);
   }
 }
 void updateRippleIndex(unsigned long delayTime){
@@ -211,14 +192,17 @@ void updateRippleIndex(unsigned long delayTime){
   
 void rampSpeed(int speedLeft, int speedRight)
 {
+  stopping = true;
   if(currentMillis - prevTime > rampDelay){
     if (speedLeft > leftMotorValue){
       leftMotorValue ++;
+      stopping = false;
     }else if (speedLeft < leftMotorValue){
       leftMotorValue --;
     }
     if (speedRight > rightMotorValue){
       rightMotorValue ++;
+      stopping = false;
     }else if (speedRight < rightMotorValue){
       rightMotorValue --;
     }
